@@ -1,3 +1,22 @@
+# Project Specific Files & Directories
+*.h5
+*.hdf5
+*.npz
+*.savez
+data/
+logs/
+data
+logs
+notes.txt
+*.conf
+*.ini
+*.config
+*-ignore.py
+*-ignore.ipynb
+
+# Ignore MacOS DS_Store files
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
