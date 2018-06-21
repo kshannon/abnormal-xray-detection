@@ -1,7 +1,10 @@
 cat <<EOT >> "data_path.ini"
-[local]
-train_csv = <enter_path>
-validate_csv = <enter_path>
-train_img = <enter_path>
-validate_img = <enter_path>
+[csv]
+train_image_paths = <enter/path>
+train_labeled_studies = <enter/path>
+valid_image_paths = <enter/path>
+valid_labeled_studies = <enter/path>
+[img]
+train_imgs = <enter/path>
+valid_imgs = <enter/path>
 EOT
