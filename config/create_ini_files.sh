@@ -6,7 +6,10 @@ valid_image_paths = ../sample_data/valid_image_paths.csv
 valid_labeled_studies = ../sample_data/valid_labeled_studies.csv
 train_imgs = ../sample_data/train/
 valid_imgs = ../sample_data/valid/
+[data]
+data_path = <enter/path>
 [csv]
+csv_path = <enter/path>
 train_image_paths = <enter/path>
 train_labeled_studies = <enter/path>
 valid_image_paths = <enter/path>
