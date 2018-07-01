@@ -15,31 +15,16 @@ from glob import glob
 import tensorflow as tf
 from tensorflow.contrib.data import Dataset, Iterator
 
+### # TODO: This script should become modular, will rip out the config parser
+# and add that to train model, which will import this script, feed this script's
+# functions the file paths etc etc TODO
 
 
 
-###### ------------- testing -------------- ######
-# dataset = tf.data.TextLineDataset(train_paths) # node in the tf graph
-# dataset = dataset.shuffle(buffer_size=len(dataset))
-# dataset = dataset.batch(3)
-# # iterator = dataset.make_one_shot_iterator() #iterator to iter over dataset once.
-# iterator = dataset.make_initializable_iterator()
-# next_element = iterator.get_next() #graph node to contain next element of iterator
-# init_op = iterator.initializer #huh??
-#
-# with tf.Session() as sess:
-#     # Initialize the iterator
-#     sess.run(init_op)
-#     print(sess.run(next_element))
-#     print(sess.run(next_element))
-#     # Move the iterator back to the beginning
-#     sess.run(init_op)
-#     print(sess.run(next_element))
-#
-# sys.exit()
-###### ------------- testing -------------- ######
 
+### --- Helper Function --- ###
 def split_data_labels(csv_path):
+    """ TODO """
     filenames = []
     labels = []
     with open(csv_path, 'r') as f:
@@ -48,6 +33,35 @@ def split_data_labels(csv_path):
             filenames.append(new_line[0])
             labels.append(new_line[1])
     return filenames,labels
+
+def preprocess_img(filename, label):
+    """ TODO """
+    image_string = tf.read_file(filename)
+    # Don't use tf.image.decode_image, or the output shape will be undefined
+    image = tf.image.decode_jpeg(image_string, channels=3)
+    # This will convert to float values in [0, 1]
+    image = tf.image.convert_image_dtype(image, tf.float32)
+    image = tf.image.resize_images(image, [64, 64])
+    return resized_image, label
+
+def img_augmentation(image, label):
+    """ TODO """
+    image = tf.image.random_flip_left_right(image)
+    image = tf.image.random_brightness(image, max_delta=32.0 / 255.0)
+    image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+    # Make sure the image is still in [0, 1]
+    image = tf.clip_by_value(image, 0.0, 1.0)
+    return image, label
+
+def build_dataset(data, labels):
+    """ TODO """
+    dataset = tf.data.Dataset.from_tensor_slices((data, labels))
+    dataset = dataset.shuffle(len(data))
+    dataset = dataset.map(preprocess_img, num_parallel_calls=4)
+    dataset = dataset.map(img_augmentation, num_parallel_calls=4)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(1)
+    return dataset
 
 def main():
     #### ---- ConfigParse Utility ---- ####
@@ -78,7 +92,7 @@ if __name__ == '__main__':
     main()
 
 
-
+#### examples
 dataset = tf.data.Dataset.from_tensor_slices((filenames, labels))
 dataset = dataset.shuffle(len(filenames))
 dataset = dataset.map(parse_function, num_parallel_calls=4)
@@ -98,91 +112,3 @@ with tf.Session() as sess:
     # Move the iterator back to the beginning
     sess.run(init_op)
     print(sess.run(next_element))
-
-
-
-
-
-
-
-
-
-train_dataset = tf.data.TextLineDataset(train_dataset_fp)
-train_dataset = train_dataset.skip(1)             # skip the first header row
-train_dataset = train_dataset.map(parse_csv)      # parse each row
-train_dataset = train_dataset.shuffle(buffer_size=1000)  # randomize
-train_dataset = train_dataset.batch(32)
-
-# View a single example entry from a batch
-features, label = iter(train_dataset).next()
-print("example features:", features[0])
-print("example label:", label[0])
-# example features: tf.Tensor([6.  2.7 5.1 1.6], shape=(4,), dtype=float32)
-# example label: tf.Tensor(1, shape=(), dtype=int32)
-
-
-
-# need a function to go grab those csv files and pull them in
-def injest_csv():
-    pass
-
-def create_data():
-    pass
-
-
-
-
-
-# Toy data
-train_imgs = tf.constant(['train/img431.png', 'train/img2.png',
-                          'train/img3.png', 'train/img4.png',
-                          'train/img5.png', 'train/img6.png'])
-train_labels = tf.constant([0, 0, 0, 1, 1, 1])
-
-val_imgs = tf.constant(['val/img1.png', 'val/img2.png',
-                        'val/img3.png', 'val/img43.png'])
-val_labels = tf.constant([0, 0, 1, 1])
-
-# create TensorFlow Dataset objects
-# tr_data = Dataset.from_tensor_slices((train_imgs, train_labels))
-# val_data = Dataset.from_tensor_slices((val_imgs, val_labels))
-tr_data = tf.data.Dataset.from_tensor_slices((train_imgs, train_labels))
-val_data = tf.data.Dataset.from_tensor_slices((val_imgs, val_labels))
-
-# create TensorFlow Iterator object
-iterator = Iterator.from_structure(tr_data.output_types,
-                                   tr_data.output_shapes)
-next_element = iterator.get_next()
-
-# create two initialization ops to switch between the datasets
-training_init_op = iterator.make_initializer(tr_data)
-validation_init_op = iterator.make_initializer(val_data)
-
-with tf.Session() as sess:
-
-    # initialize the iterator on the training data
-    sess.run(training_init_op)
-
-    # get each element of the training dataset until the end is reached
-    while True:
-        try:
-            elem = sess.run(next_element)
-            print(elem)
-        except tf.errors.OutOfRangeError:
-            print("End of training dataset.")
-            break
-
-    # initialize the iterator on the validation data
-    sess.run(validation_init_op)
-
-    # get each element of the validation dataset until the end is reached
-    while True:
-        try:
-            elem = sess.run(next_element)
-            print(elem)
-        except tf.errors.OutOfRangeError:
-            print("End of training dataset.")
-            break
-
-if __name__ == '__main__':
-    main()
