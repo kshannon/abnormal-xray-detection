@@ -21,7 +21,7 @@ from tensorflow.contrib.data import Dataset, Iterator
 
 
 ### --- Globals --- ###
-BATCH_SIZE = 2
+BATCH_SIZE = 3
 PREFETCH_SIZE = 1
 
 
@@ -108,7 +108,8 @@ def main():
         while True:
             try:
                 elem = sess.run(next_element)
-                print(elem)
+                print(elem[0].shape)
+                print(elem[1])
                 count += 1
             except tf.errors.OutOfRangeError:
                 print(count)

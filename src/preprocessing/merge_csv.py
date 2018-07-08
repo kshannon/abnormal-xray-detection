@@ -11,6 +11,9 @@ import pandas as pd
 import numpy as np
 import re
 
+#### ---- CSV File Names ---- ####
+train_image_paths = 'train_image_paths.csv' #File provided by Stanford
+valid_image_paths = 'valid_image_paths.csv' #File provided by Stanford
 
 def generate_labels(data):
     '''crawl through csv, regex for label in str path, and return list of labels'''
@@ -33,34 +36,29 @@ def main():
     config.read('../../config/data_path.ini')
 
     try:
-        csv_path = config.get('csv', 'csv_path') #grab .csv paths from .ini
-        train_image_paths = config.get('csv', 'train_image_paths')
-        valid_image_paths = config.get('csv', 'valid_image_paths')
-        #DEBUG test on sample csvs
-        # train_image_paths = config.get('sample', 'train_image_paths')
-        # valid_image_paths = config.get('sample', 'valid_image_paths')
+        sample_data = config.get('sample', 'sample_data') #build sample data
+        complete_data = config.get('data', 'data_path') + 'MURA-v1.1/'
     except:
         print('could not read data_path.ini file. Try checking your paths.')
         sys.exit(1)
 
-    # pandas to read and create csvs
-    train = create_dfs(train_image_paths)
-    valid = create_dfs(valid_image_paths)
+    for path in [sample_data, complete_data]:
 
-    # regex to determine class label, turn list into series
-    train_labels = pd.Series(generate_labels(train))
-    valid_labels = pd.Series(generate_labels(valid))
+        # pandas to read and create csvs
+        train = create_dfs(path + train_image_paths)
+        valid = create_dfs(path + valid_image_paths)
 
-    # add pd.Series() labels to the df
-    train['labels'] = train_labels.values
-    valid['labels'] = valid_labels.values
+        # regex to determine class label, turn list into series
+        train_labels = pd.Series(generate_labels(train))
+        valid_labels = pd.Series(generate_labels(valid))
 
-    # save df as csv, w/o header info
-    train.to_csv(csv_path+'train.csv',header=False,index=False)
-    valid.to_csv(csv_path+'valid.csv',header=False,index=False)
-    #DEBUG test on sample data
-    # train.to_csv(csv_path+'train_sample.csv',header=False,index=False)
-    # valid.to_csv(csv_path+'valid_sample.csv',header=False,index=False)
+        # add pd.Series() labels to the df
+        train['labels'] = train_labels.values
+        valid['labels'] = valid_labels.values
+
+        # save df as csv, w/o header info
+        train.to_csv(path+'train.csv',header=False,index=False)
+        valid.to_csv(path+'valid.csv',header=False,index=False)
 
 
 
