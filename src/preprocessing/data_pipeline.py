@@ -23,6 +23,7 @@ from tensorflow.contrib.data import Dataset, Iterator
 ### --- Globals --- ###
 BATCH_SIZE = 3
 PREFETCH_SIZE = 1
+sample = True
 
 
 ### --- Helper Function --- ###
@@ -77,20 +78,25 @@ def main():
     config.read('../../config/data_path.ini')
 
     try:
-        # data_path = config.get('data', 'data_path')
-        data_path = '/Users/keil/dev/mura-challenge/abnormal-xray-detection/sample_data/'
-        train_paths = config.get('sample', 'train_sample')
-        valid_paths = config.get('sample', 'valid_sample')
-        # train_paths = config.get('csv', 'csv_path') + 'train.csv'
-        # valid_paths = config.get('csv', 'csv_path') + 'valid.csv'
-        print("Data path: '{}'".format(data_path))
+        sample_data = config.get('sample', 'sample_data') #build sample data
+        complete_data = config.get('data', 'data_path')
+        print("Data path: '{}'".format(complete_data))
     except:
         print('Error reading data_path.ini, try checking data paths.')
         sys.exit(1)
 
+    # Check if we are working with sample or complete data... TODO ugly...
+    if sample == True:
+        train_paths = sample_data + 'train.csv'
+        valid_paths = sample_data + 'valid.csv'
+    else:
+        train_paths = complete_data + 'MURA-v1.1/train.csv'
+        valid_paths = complete_data + 'MURA-v1.1/valid.csv'
+
+
     # Generate seperate lists of img paths and labels to feed into tf.data
-    train_imgs, train_labels = split_data_labels(train_paths, data_path)
-    valid_imgs, valid_labels = split_data_labels(valid_paths, data_path)
+    train_imgs, train_labels = split_data_labels(train_paths, complete_data)
+    valid_imgs, valid_labels = split_data_labels(valid_paths, complete_data)
 
     # Build tf.data objects to interact with tf.iterator
     train_dataset = build_dataset(train_imgs, train_labels) #training data
