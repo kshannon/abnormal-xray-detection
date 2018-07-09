@@ -7,6 +7,8 @@ data/
 logs/
 data
 logs
+train.csv
+valid.csv
 notes.txt
 *.conf
 *.ini
