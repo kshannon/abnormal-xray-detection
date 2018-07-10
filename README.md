@@ -19,7 +19,19 @@ The instructions below will get you a copy of the project up and running on your
 ## Data
 Data is openly availble from Stanford's ML Lab: https://stanfordmlgroup.github.io/competitions/mura/
 
-Raise: TODO
+Here are two samples of negative and positive data:
+<br />
+<br />
+<img src="images/neg_sample_1.png" alt="drawing" width="148px"/> 
+<img src="images/neg_sample_2.png" alt="drawing" width="310px"/> 
+<img src="images/pos_sample_1.png" alt="drawing" width="205px"/> 
+<img src="images/pos_sample_2.png" alt="drawing" width="194px"/>
+<br />
+
+Some high level EDA findings:
+1. asd
+2. ads
+3. ads
 
 ## Prerequisites
 A list of conda/pip environment dependencies can be found in the environments.yml file. To create a conda env with all of the dependencies run the create_conda_env.sh shell script. We are also using Tensorflow and Keras with GPU support.
@@ -39,3 +51,4 @@ Raise: TODO
 ## Authors
 - [Kyle Shannon](https://github.com/kshannon)
 - [Chris Chen](https://github.com/utcsox)
+- Laura Wilke
