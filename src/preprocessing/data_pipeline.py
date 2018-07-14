@@ -5,6 +5,8 @@
 # set correctly in the data_path.ini file. The paths should lead to your
 # MURA .csv files
 
+# !!! When saving a model's weights, tf.keras defaults to the checkpoint format. Pass save_format='h5' to use HDF5.
+
 
 import sys
 import os
@@ -13,7 +15,11 @@ from configparser import ConfigParser
 import pathlib
 from glob import glob
 import tensorflow as tf
-from tensorflow.contrib.data import Dataset, Iterator
+from tensorflow import keras
+# from tensorflow.contrib.data import Data, Iterator
+tf.enable_eager_execution()
+tfe = tf.contrib.eager
+
 
 ### # TODO: This script should become modular, will rip out the config parser
 # and add that to train model, which will import this script, feed this script's
@@ -24,6 +30,8 @@ from tensorflow.contrib.data import Dataset, Iterator
 BATCH_SIZE = 3
 PREFETCH_SIZE = 1
 sample = True
+img_resize_x = 64
+img_resize_y = 64
 
 
 ### --- Helper Function --- ###
@@ -35,7 +43,7 @@ def split_data_labels(csv_path, data_path):
         for line in f:
             new_line = line.strip().split(',')
             filenames.append(data_path + new_line[0])
-            labels.append(new_line[1])
+            labels.append(float(new_line[1]))
     return filenames,labels
 
 def save_img(img, label):
@@ -50,7 +58,7 @@ def preprocess_img(filename, label):
     image = tf.image.decode_jpeg(image_string, channels=3)
     # This will convert to float values in [0, 1]
     image = tf.image.convert_image_dtype(image, tf.float32)
-    image = tf.image.resize_images(image, [64, 64])
+    image = tf.image.resize_images(image, [img_resize_x, img_resize_y])
     return image, label # resized_image ??
 
 def img_augmentation(image, label):
@@ -60,6 +68,14 @@ def img_augmentation(image, label):
     image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
     # Make sure the image is still in [0, 1]
     image = tf.clip_by_value(image, 0.0, 1.0)
+    print('------------------------------')
+    print(type(image))
+    print(image)
+    print(type(label))
+    print(label)
+    print('------------------------------')
+    # print(image)
+    # sys.exit()
     return image, label
 
 def build_dataset(data, labels):
@@ -68,8 +84,13 @@ def build_dataset(data, labels):
     dataset = dataset.shuffle(len(data))
     dataset = dataset.map(preprocess_img, num_parallel_calls=4)
     dataset = dataset.map(img_augmentation, num_parallel_calls=4)
-    dataset = dataset.batch(BATCH_SIZE)
-    dataset = dataset.prefetch(PREFETCH_SIZE) #single training step consumes n elements
+    dataset = dataset.batch(BATCH_SIZE) # (?, x, y) unknown batch size because the last batch will have fewer elements.
+    # dataset = dataset.prefetch(PREFETCH_SIZE) #single training step consumes n elements
+    print('------------------------------')
+    print(type(dataset))
+    print(dataset)
+    print('------------------------------')
+    dataset = dataset.repeat()
     return dataset
 
 def main():
@@ -93,7 +114,6 @@ def main():
         train_paths = complete_data + 'MURA-v1.1/train.csv'
         valid_paths = complete_data + 'MURA-v1.1/valid.csv'
 
-
     # Generate seperate lists of img paths and labels to feed into tf.data
     train_imgs, train_labels = split_data_labels(train_paths, complete_data)
     valid_imgs, valid_labels = split_data_labels(valid_paths, complete_data)
@@ -101,28 +121,72 @@ def main():
     # Build tf.data objects to interact with tf.iterator
     train_dataset = build_dataset(train_imgs, train_labels) #training data
     valid_dataset = build_dataset(valid_imgs, valid_labels) #validation data
+    print(train_dataset)
+
+    # train a simple sample model
+    model = keras.Sequential([
+    keras.layers.Conv2D(64, kernel_size=(3,3), input_shape=(64, 64, 3), data_format="channels_last"),
+    keras.layers.Flatten(),
+    keras.layers.Dense(32, activation=tf.nn.relu),
+    keras.layers.Dense(2, activation=tf.nn.softmax)
+    ])
+
+    model.compile(optimizer=tf.train.AdamOptimizer(),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy'])
 
 
-    iterator = train_dataset.make_one_shot_iterator()
-    next_element = iterator.get_next()
+
+    model.fit(train_dataset, epochs=10, steps_per_epoch=30,
+        validation_data=valid_dataset,
+        validation_steps=30)
+    sys.exit()
+
+
+
+
+
+    # Using Eager Execution and no Session
+    # for img, label in train_dataset:
+    #     print(img)
+    #     print(label)
+
+    # # train a simple sample model
+    # model = keras.Sequential([
+    # keras.layers.Dense((img_resize_x * img_resize_y), activation=tf.nn.relu, input_shape = (64, 64, 3)),
+    # keras.layers.Dense(2, activation=tf.nn.softmax)
+    # ])
+    # model.add(Flatten())
+    #
+    # model.compile(optimizer=tf.train.AdamOptimizer(),
+    #     loss='sparse_categorical_crossentropy',
+    #     metrics=['accuracy'])
+    #
+    # model.fit(train_dataset, epochs=1, steps_per_epoch=2)
+    #
+    # valid_loss, valid_acc = model.evaluate(test_images, test_labels)
+    #
+    # print('Test accuracy:', test_acc)
+
+    # iterator = train_dataset.make_one_shot_iterator()
+    # next_element = iterator.get_next()
     # print(type(iterator)) #<class 'tensorflow.python.data.ops.iterator_ops.Iterator'>
     # print(next_element) #(<tf.Tensor 'IteratorGetNext:0' shape=(?, 64, 64, 3) dtype=float32>, <tf.Tensor 'IteratorGetNext:1' shape=(?,) dtype=string>)
 
 
-    with tf.Session() as sess:
-        count = 0
-        while True:
-            try:
-                elem = sess.run(next_element)
-                print(elem[0].shape)
-                print(elem[1])
-                count += 1
-            except tf.errors.OutOfRangeError:
-                print(count)
-                print("End of training dataset.")
-                break
+    # with tf.Session() as sess:
+    #     count = 0
+    #     while True:
+    #         try:
+    #             elem = sess.run(next_element)
+    #             print(elem[0].shape)
+    #             print(elem[1])
+    #             count += 1
+    #         except tf.errors.OutOfRangeError:
+    #             print(count)
+    #             print("End of training dataset.")
+    #             break
 
-        sys.exit()
 
 
 
