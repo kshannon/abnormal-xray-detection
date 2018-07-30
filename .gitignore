@@ -4,8 +4,10 @@
 *.npz
 *.savez
 data/
+results/
 logs/
 data
+results
 logs
 train.csv
 valid.csv

@@ -1,3 +1,4 @@
+mkdir -p -- "$results"
 while true; do
     read -p "Create a new conda env & install project dependencies?" yn
     case $yn in
