@@ -225,7 +225,7 @@ def main():
             save_best_only=True)
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/TensorBoard
-    tb_log = keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
+    tensorboard = keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
             histogram_freq=0,
             batch_size=BATCH_SIZE,
             write_graph=True,
@@ -246,7 +246,7 @@ def main():
             steps_per_epoch=3, #steps_per_epoch=patches_len // batch_size...
             validation_data=valid_dataset, #.make_one_shot_iterator()...?
             validation_steps=3,
-            callbacks=[checkpointer, tb_log]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
+            callbacks=[checkpointer, tensorboard]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
     sys.exit()
 
 
