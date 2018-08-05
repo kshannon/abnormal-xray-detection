@@ -52,6 +52,7 @@ from configparser import ConfigParser
 import h5py
 import pathlib
 from glob import glob
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 tf.enable_eager_execution()
@@ -88,7 +89,7 @@ MAX_DATA = args.max_data
 MODEL_SUMMARY = args.model_summary
 IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
-BATCH_SIZE = 1
+BATCH_SIZE = 8
 LEARNING_RATE = 0.0001
 DECAY_FACTOR = 10 #learnng rate decayed when valid. loss plateaus after an epoch
 ADAM_B1 = 0.9 #adam optimizer default beta_1 value (Kingma & Ba, 2014)
@@ -103,7 +104,7 @@ CHECKPOINT_FILENAME = "./DenseNet169_baseline_{}.hdf5".format(time.strftime("%Y%
 if MAX_DATA == False:
     train_paths = sample_data + 'train.csv'
     valid_paths = sample_data + 'valid.csv'
-    data_path = sample_data
+    data_path = max_data
     print("Using SAMPLE dataset. Data path: '{}'".format(sample_data))
 else:
     train_paths = max_data + 'MURA-v1.1/train.csv'
@@ -112,7 +113,7 @@ else:
     print("Using Full dataset. Data path: '{}'".format(max_data))
 
 def split_data_labels(csv_path, data_path):
-    """ take CSVs with filepaths/labels and extracts them into lists"""
+    """ take CSVs with filepaths/labels and extracts them into parallel lists"""
     filenames = []
     labels = []
     with open(csv_path, 'r') as f:
@@ -133,16 +134,20 @@ def preprocess_img(filename, label):
     Ensure img is the required dim and has been normalized to ImageNet mean/std
     """
     image_string = tf.read_file(filename)
-    image = tf.image.decode_jpeg(image_string, channels=0) # Don't use tf.image.decode_image
+    image = tf.image.decode_jpeg(image_string, channels=3) # Don't use tf.image.decode_image
     #   image = tf.image.per_image_standardization(image) #norm over entire dataset instead...
     # This will convert to float values in [0, 1]
     #   image = tf.image.convert_image_dtype(image, tf.float32)
     # or do we write our own...?
     #   image = normalize_img(image)
     image = tf.image.resize_images(image, [IMG_RESIZE_X, IMG_RESIZE_Y])
+    # print(label) DEBUG
+    # print('==========================$$$$$$$$========================')
+    # label = np.asarray(int(label)).astype('float32').reshape((-1,1))
     return image, label
 
 def normalize_data():
+    """TODO"""
     # using ImageNet mean and standard deviation?
     # we would just do some simple arithmetic and return the tensor
     pass
@@ -159,6 +164,8 @@ def img_augmentation(image, label):
 
 def build_dataset(data, labels):
     """ TODO """
+    # labels = tf.cast(labels, tf.uint8) #do I really need to do this.....
+    labels = tf.one_hot(tf.cast(labels, tf.uint8), 2) #do I really need to do this.....
     dataset = tf.data.Dataset.from_tensor_slices((data, labels))
     dataset = dataset.shuffle(len(data))
     dataset = dataset.map(preprocess_img, num_parallel_calls=4) #TODO num_parallel_calls?
@@ -178,52 +185,55 @@ def main():
     train_dataset = build_dataset(train_imgs, train_labels)
     valid_dataset = build_dataset(valid_imgs, valid_labels)
     #DEBUG start
-    # print(type(train_dataset))
-    # iterator = train_dataset.make_one_shot_iterator()
+    print(type(train_dataset))
+    iterator = train_dataset.make_one_shot_iterator()
     # for x, y in iterator:
-    #     print(x, y)
     #     print(type(x))
     #     print(x.shape)
-    #     z = x.numpy()
-    #     print(z.max())
-    #     print(z.min())
+    #     print(y.shape)
+    #     print(y)
+    #     # z = x.numpy()
+    #     # print(z.max())
+    #     # print(z.min())
+    #     print('==========================$$$$$$$$========================')
     #     break
-    #
-    #
-    # sys.exit()
+    # sys.exit() DEBUG
 
-    # print("Downloading DenseNet PreTrained Weights...")
+
+    print("Downloading DenseNet PreTrained Weights...")
     # https://keras.io/applications/#densenet
-    # model = keras.applications.densenet.DenseNet169(include_top=True,
-            # weights='imagenet',
-            # input_tensor=None,
-            # input_shape=None,
-            # pooling=None,
-            # classes=1000)
-    model = keras.Sequential([
-    keras.layers.Conv2D(64, kernel_size=(3,3), input_shape=(64, 64, 3), data_format="channels_last"),
-    keras.layers.Flatten(),
-    keras.layers.Dense(32, activation=tf.nn.relu),
-    keras.layers.Dense(2, activation=tf.nn.softmax)
-    ])
+    DenseNet169 = keras.applications.densenet.DenseNet169(include_top=False,
+            weights='imagenet',
+            input_tensor=None,
+            input_shape=(IMG_RESIZE_X, IMG_RESIZE_Y, 3),
+            pooling='max',
+            classes=2)
+    last_layer = DenseNet169.output
+    print(last_layer)
+    preds = tf.keras.layers.Dense(2, activation='sigmoid')(last_layer)
+    model = tf.keras.Model(DenseNet169.input, preds)
 
+    # https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer
+    optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE,
+            beta1=ADAM_B1,
+            beta2=ADAM_B2)
+
+    # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/ModelCheckpoint
     checkpointer = keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_FILENAME,
             monitor="val_loss",
             verbose=1,
             save_best_only=True)
 
+    # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/TensorBoard
     tb_log = keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
             histogram_freq=0,
-            batch_size=batch_size,
+            batch_size=BATCH_SIZE,
             write_graph=True,
             write_grads=True,
-            write_images=True,
-            embeddings_freq=0,
-            embeddings_layer_names=None,
-            embeddings_metadata=None)
+            write_images=True)
 
-    model.compile(optimizer=tf.train.AdamOptimizer(),
-            loss='sparse_categorical_crossentropy',
+    model.compile(optimizer=optimizer,
+            loss='binary_crossentropy',
             metrics=['accuracy'])
 
     if MODEL_SUMMARY == True:
@@ -232,11 +242,11 @@ def main():
 
     print("Beginning to Train Model")
     model.fit(train_dataset,
-            epochs=10,
-            steps_per_epoch=30,
-            validation_data=valid_dataset,
-            validation_steps=30
-            callbacks=[tb_log, checkpointer])
+            epochs=3,
+            steps_per_epoch=3, #steps_per_epoch=patches_len // batch_size...
+            validation_data=valid_dataset, #.make_one_shot_iterator()...?
+            validation_steps=3,
+            callbacks=[checkpointer, tb_log]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
     sys.exit()
 
 
@@ -250,3 +260,8 @@ if __name__ == '__main__':
 # train_dataset = build_dataset(train_imgs, train_labels) #training data
 # valid_dataset = build_dataset(valid_imgs, valid_labels) #validation data
 # print(train_dataset)
+
+#
+# loss = tf.losses.sigmoid_cross_entropy(
+#         multi_class_labels=tf.squeeze(tf.one_hot(labels, depth=2), axis=1),
+#         logits=logits)
