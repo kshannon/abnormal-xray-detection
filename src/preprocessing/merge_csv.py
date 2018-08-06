@@ -2,7 +2,7 @@
 
 # Script to take the label column from train_labeled_studies and populate it
 # into the train_image_paths csv (for both train and validate)
-# Test script by uncommenting #DEBUG lines and commenting out preceeding lines.
+# Test script by uncommenting #DEBUG lines and commenting out preceding lines.
 
 import sys
 import os
@@ -37,9 +37,14 @@ def main():
 
     try:
         sample_data = config.get('sample', 'sample_data') #build sample data
+    except:
+        print('could not create "sample" path from data_path.ini file. Try checking your paths.')
+        sys.exit(1)
+    
+    try:
         complete_data = config.get('data', 'data_path') + 'MURA-v1.1/'
     except:
-        print('could not read data_path.ini file. Try checking your paths.')
+        print('could not not create "data" path from data_path.ini file. Try checking your paths.')
         sys.exit(1)
 
     for path in [sample_data, complete_data]:

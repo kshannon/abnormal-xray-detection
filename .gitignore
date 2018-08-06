@@ -17,6 +17,8 @@ notes.txt
 *.config
 *-ignore.py
 *-ignore.ipynb
+TensorBoard_logs
+TensorBoard_logs/
 
 # Ignore MacOS DS_Store files
 .DS_Store

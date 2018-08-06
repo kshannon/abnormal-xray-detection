@@ -49,8 +49,8 @@ from glob import glob
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
+# tf.enable_eager_execution()
+# tfe = tf.contrib.eager
 
 
 #### ========= Argparse Utility ========= ####
@@ -93,6 +93,7 @@ MAX_ROTAT_DEGREES = 30 #up to 30 degrees img rotation.
 MIN_ROTAT_DEGREES = 0
 TB_LOG_DIR = "./TensorBoard_logs"
 CHECKPOINT_FILENAME = "./DenseNet169_baseline_{}.hdf5".format(time.strftime("%Y%m%d_%H%M%S"))# Save Keras model to this file
+MODEL_FILENAME = "./DenseNet169_baseline_model"
 
 
 #### ========= Ingest Data ========= ####
@@ -141,11 +142,6 @@ def preprocess_img(filename, label):
     # label = np.asarray(int(label)).astype('float32').reshape((-1,1))
     return image, label
 
-def normalize_data():
-    """TODO"""
-    # using ImageNet mean and standard deviation?
-    # we would just do some simple arithmetic and return the tensor
-    pass
 
 def img_augmentation(image, label):
     """ Call this on minibatch at time of training """
@@ -162,7 +158,7 @@ def build_dataset(data, labels):
     print('===============fhjdkslfhjvl=========')
 
     # labels = tf.cast(labels, tf.uint8) #do I really need to do this.....
-    labels = tf.one_hot(tf.cast(labels, tf.uint8), 2) #cast labels to dim 2 tf obj
+    labels = tf.one_hot(tf.cast(labels, tf.uint8), 1) #cast labels to dim 2 tf obj
     # labels = tf.cast(labels, tf.uint8) #cast labels to dim 2 tf obj DEBUG
     # print(labels.shape)
     # labels = tf.reshape(labels, [labels.shape,-1])
@@ -174,7 +170,7 @@ def build_dataset(data, labels):
     # dataset = dataset.map(img_augmentation, num_parallel_calls=4)
     dataset = dataset.batch(BATCH_SIZE) # (?, x, y) unknown batch size because the last batch will have fewer elements.
     # dataset = dataset.prefetch(PREFETCH_SIZE) #single training step consumes n elements
-    dataset = dataset.repeat()
+    dataset = dataset.repeat(EPOCHS)
     return dataset
 
 
@@ -189,7 +185,7 @@ def main():
 
     print("Downloading DenseNet PreTrained Weights...")
     # https://keras.io/applications/#densenet
-    DenseNet169 = keras.applications.densenet.DenseNet169(include_top=False,
+    DenseNet169 = tf.keras.applications.densenet.DenseNet169(include_top=False,
             weights='imagenet',
             input_tensor=None,
             input_shape=(IMG_RESIZE_X, IMG_RESIZE_Y, 3),
@@ -197,7 +193,7 @@ def main():
             classes=2)
     last_layer = DenseNet169.output
     # print(last_layer)
-    preds = tf.keras.layers.Dense(2, activation='sigmoid')(last_layer)
+    preds = tf.keras.layers.Dense(1, activation='sigmoid')(last_layer)
     model = tf.keras.Model(DenseNet169.input, preds)
 
     # https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer
@@ -206,13 +202,13 @@ def main():
             beta2=ADAM_B2)
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/ModelCheckpoint
-    checkpointer = keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_FILENAME,
+    checkpointer = tf.keras.callbacks.ModelCheckpoint(filepath=CHECKPOINT_FILENAME,
             monitor="val_loss",
             verbose=1,
             save_best_only=True)
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/TensorBoard
-    tensorboard = keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
             histogram_freq=0,
             batch_size=BATCH_SIZE,
             write_graph=True,
@@ -231,12 +227,24 @@ def main():
     model.fit(train_dataset,
             epochs=EPOCHS,
             steps_per_epoch=(len(train_labels)//BATCH_SIZE),
-            validation_data=valid_dataset, #.make_one_shot_iterator()...?
-            validation_steps=16,
+            verbose=1,
+            validation_data=valid_dataset,
+            validation_steps=4,
             shuffle=True,
-            callbacks=[checkpointer]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
+            callbacks=[checkpointer,tensorboard]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
+            
+        
+
+
+
+    # Save entire model to a HDF5 file
+    model.save(MODEL_FILENAME + '.h5')
+    # # Recreate the exact same model, including weights and optimizer.
+    # model = keras.models.load_model('my_model.h5')
+
     sys.exit()
 
+    # model.save_weights(MODEL_FILENAME, overwrite=True)
 
 if __name__ == '__main__':
     main()
