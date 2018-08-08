@@ -8,12 +8,6 @@
 # This code attempts to recreate the results from the MURA paper.
 
 #### NOTES.........
-#[1]
-'''The model takes as input one or more views for a study. On each view, our 169-layer
-convolutional neural network predicts the probability of abnormality; the per-view probabilities are
-then averaged to output the probability of abnormality for the study.'''
-#[2]
-'''final fully connected layer has a single output, after which we applied a sigmoid nonlinearity.'''
 #[3]
 '''Before feeding images into the network, we normalized each image to have the same mean and
 standard deviation of images in the ImageNet training set.'''
@@ -84,7 +78,9 @@ MODEL_SUMMARY = args.model_summary
 EPOCHS = 30
 IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
+CHANNELS = 3
 BATCH_SIZE = 8
+VALIDATION_STEPS = 4
 LEARNING_RATE = 0.0001
 DECAY_FACTOR = 10 #learnng rate decayed when valid. loss plateaus after an epoch
 ADAM_B1 = 0.9 #adam optimizer default beta_1 value (Kingma & Ba, 2014)
@@ -94,6 +90,10 @@ MIN_ROTAT_DEGREES = 0
 TB_LOG_DIR = "./TensorBoard_logs"
 CHECKPOINT_FILENAME = "./DenseNet169_baseline_{}.hdf5".format(time.strftime("%Y%m%d_%H%M%S"))# Save Keras model to this file
 MODEL_FILENAME = "./DenseNet169_baseline_model"
+
+if MAX_DATA == False:
+    BATCH_SIZE = 4
+    VALIDATION_STEPS = 2
 
 
 #### ========= Ingest Data ========= ####
@@ -130,7 +130,7 @@ def preprocess_img(filename, label):
     Ensure img is the required dim and has been normalized to ImageNet mean/std
     """
     image_string = tf.read_file(filename)
-    image = tf.image.decode_jpeg(image_string, channels=3) # Don't use tf.image.decode_image
+    image = tf.image.decode_jpeg(image_string, channels=CHANNELS) # Don't use tf.image.decode_image
     #   image = tf.image.per_image_standardization(image) #norm over entire dataset instead...
     # This will convert to float values in [0, 1]
     #   image = tf.image.convert_image_dtype(image, tf.float32)
@@ -188,7 +188,7 @@ def main():
     DenseNet169 = tf.keras.applications.densenet.DenseNet169(include_top=False,
             weights='imagenet',
             input_tensor=None,
-            input_shape=(IMG_RESIZE_X, IMG_RESIZE_Y, 3),
+            input_shape=(IMG_RESIZE_X, IMG_RESIZE_Y, CHANNELS),
             pooling='max',
             classes=2)
     last_layer = DenseNet169.output
@@ -209,7 +209,7 @@ def main():
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/TensorBoard
     tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TB_LOG_DIR,
-            histogram_freq=0,
+            histogram_freq=1,
             batch_size=BATCH_SIZE,
             write_graph=True,
             write_grads=True,
@@ -229,9 +229,9 @@ def main():
             steps_per_epoch=(len(train_labels)//BATCH_SIZE),
             verbose=1,
             validation_data=valid_dataset,
-            validation_steps=4,
+            validation_steps=VALIDATION_STEPS,
             shuffle=True,
-            callbacks=[checkpointer,tensorboard]) #tb_log --> RuntimeError: Merging tf.summary.* ops is not compatible with eager execution. Use tf.contrib.summary instead
+            callbacks=[checkpointer,tensorboard]) 
             
         
 
