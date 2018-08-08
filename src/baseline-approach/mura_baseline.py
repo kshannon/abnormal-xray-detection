@@ -46,7 +46,6 @@ from tensorflow import keras
 # tf.enable_eager_execution()
 # tfe = tf.contrib.eager
 
-
 #### ========= Argparse Utility ========= ####
 parser = argparse.ArgumentParser(description='Modify the MURA Baseline Script',add_help=True)
 parser.add_argument('-max_data',
@@ -80,7 +79,7 @@ IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
 CHANNELS = 3
 BATCH_SIZE = 8
-VALIDATION_STEPS = 4
+PREFETCH_SIZE = 1
 LEARNING_RATE = 0.0001
 DECAY_FACTOR = 10 #learnng rate decayed when valid. loss plateaus after an epoch
 ADAM_B1 = 0.9 #adam optimizer default beta_1 value (Kingma & Ba, 2014)
@@ -131,48 +130,30 @@ def preprocess_img(filename, label):
     """
     image_string = tf.read_file(filename)
     image = tf.image.decode_jpeg(image_string, channels=CHANNELS) # Don't use tf.image.decode_image
-    #   image = tf.image.per_image_standardization(image) #norm over entire dataset instead...
-    # This will convert to float values in [0, 1]
-    #   image = tf.image.convert_image_dtype(image, tf.float32)
-    # or do we write our own...?
-    #   image = normalize_img(image)
+    image = tf.image.convert_image_dtype(image, tf.float32) #convert to float values in [0, 1]
     image = tf.image.resize_images(image, [IMG_RESIZE_X, IMG_RESIZE_Y])
-    # print(label) DEBUG
-    # print('==========================$$$$$$$$========================')
-    # label = np.asarray(int(label)).astype('float32').reshape((-1,1))
     return image, label
 
 
 def img_augmentation(image, label):
     """ Call this on minibatch at time of training """
-    # image = tf.image.random_flip_left_right(image) # %, make sure this is inversions
+    image = tf.image.random_flip_left_right(image) #lateral inversion with P(0.5)
     # rotatse up to 30 https://www.tensorflow.org/api_docs/python/tf/contrib/image/rotate
     #TODO
-
-    # Make sure the image is still in [0, 1] ????? Do i really need this....
-    # image = tf.clip_by_value(image, 0.0, 1.0)
+    image = tf.clip_by_value(image, 0.0, 1.0) #ensure [0.0,1.0] img constraint
     return image, label
 
 def build_dataset(data, labels):
-    """ TODO """
-    print('===============fhjdkslfhjvl=========')
-
-    # labels = tf.cast(labels, tf.uint8) #do I really need to do this.....
+    """todo"""
     labels = tf.one_hot(tf.cast(labels, tf.uint8), 1) #cast labels to dim 2 tf obj
-    # labels = tf.cast(labels, tf.uint8) #cast labels to dim 2 tf obj DEBUG
-    # print(labels.shape)
-    # labels = tf.reshape(labels, [labels.shape,-1])
-    # print(labels.shape)
-    # sys.exit() DEBUG
     dataset = tf.data.Dataset.from_tensor_slices((data, labels))
     dataset = dataset.shuffle(len(data)) #mioght not need this.... DEBUG
-    dataset = dataset.map(preprocess_img, num_parallel_calls=4) #TODO num_parallel_calls?
-    # dataset = dataset.map(img_augmentation, num_parallel_calls=4)
+    dataset = dataset.repeat(EPOCHS)
+    dataset = dataset.map(preprocess_img, num_parallel_calls=2) 
+    dataset = dataset.map(img_augmentation, num_parallel_calls=2)
     dataset = dataset.batch(BATCH_SIZE) # (?, x, y) unknown batch size because the last batch will have fewer elements.
     # dataset = dataset.prefetch(PREFETCH_SIZE) #single training step consumes n elements
-    dataset = dataset.repeat(EPOCHS)
     return dataset
-
 
 
 
@@ -180,11 +161,12 @@ def build_dataset(data, labels):
 
 
 def main():
+    # with tf.device('/cpu:0'):
+    print("Building Train/Validation Dataset Objects")
     train_dataset = build_dataset(train_imgs, train_labels)
     valid_dataset = build_dataset(valid_imgs, valid_labels)
 
-    print("Downloading DenseNet PreTrained Weights...")
-    # https://keras.io/applications/#densenet
+    print("Downloading DenseNet PreTrained Weights... Might take ~0:30 seconds")
     DenseNet169 = tf.keras.applications.densenet.DenseNet169(include_top=False,
             weights='imagenet',
             input_tensor=None,
@@ -215,6 +197,7 @@ def main():
             write_grads=True,
             write_images=True)
 
+    print("Compiling Model!")
     model.compile(optimizer=optimizer,
             loss='binary_crossentropy',
             metrics=['accuracy'])
@@ -227,24 +210,18 @@ def main():
     model.fit(train_dataset,
             epochs=EPOCHS,
             steps_per_epoch=(len(train_labels)//BATCH_SIZE),
-            verbose=1,
+            verbose=2,
             validation_data=valid_dataset,
-            validation_steps=VALIDATION_STEPS,
-            shuffle=True,
+            validation_steps=4,#(len(valid_labels)//BATCH_SIZE),
             callbacks=[checkpointer,tensorboard]) 
             
         
-
-
-
     # Save entire model to a HDF5 file
     model.save(MODEL_FILENAME + '.h5')
     # # Recreate the exact same model, including weights and optimizer.
     # model = keras.models.load_model('my_model.h5')
-
     sys.exit()
 
-    # model.save_weights(MODEL_FILENAME, overwrite=True)
 
 if __name__ == '__main__':
     main()
