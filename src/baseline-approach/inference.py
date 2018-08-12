@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 # Inference Script for MURA Stanford challenge
+# cl run valid_image_paths.csv:valid_image_paths.csv MURA-v1.1:valid src:src "python src/inference.py valid_image_paths.csv predictions.csv" -n run-predictions
+
 
 import sys
 import os
@@ -14,7 +16,7 @@ from tensorflow.keras import models
 
 
 #### ========= Global Vars and Constants ========= ####
-model = models.load_model('DenseNet169_baseline_model.h5') # Load model, weights and meta data
+model = models.load_model('src/DenseNet169_baseline_model.h5') # Load model, weights and meta data
 IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
 CHANNELS = 3
