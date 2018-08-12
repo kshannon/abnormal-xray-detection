@@ -1,8 +1,14 @@
 #!/usr/bin/python
 
 # Inference Script for MURA Stanford challenge
-# cl run valid_image_paths.csv:valid_image_paths.csv MURA-v1.1:valid src:src "python src/inference.py valid_image_paths.csv predictions.csv" -n run-predictions
+# Submission Instructions:
+# pay special attention to the flags for the docker container, we need tensorflow's docker img, also pass -gpus to speed up inference.
 
+# cl add bundle mura-utils//valid_image_paths.csv .
+# cl add bundle mura-utils//valid .    #next step takes about 15 min...
+# cl run valid_image_paths.csv:valid_image_paths.csv MURA-v1.1:valid src:src "python src/inference.py valid_image_paths.csv predictions.csv" -n run-predictions --request-docker-image tensorflow/tensorflow --request-gpus 1
+# cl make run-predictions/predictions.csv -n predictions-DenseNet169_baseline_model.h5
+# cl macro mura-utils/valid-eval-v1.1 predictions-DenseNet169_baseline_model.h5
 
 import sys
 import os
@@ -16,6 +22,7 @@ from tensorflow.keras import models
 
 
 #### ========= Global Vars and Constants ========= ####
+# require src/ as the src dir was zipped for submission purposes...
 model = models.load_model('src/DenseNet169_baseline_model.h5') # Load model, weights and meta data
 IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
@@ -93,7 +100,7 @@ def main():
         predictions.append((dir_path, classification))
 
     # STEP 3: write out the avg prediction per study to a csv
-    with open(output_prediction_csv_path,'w', newline='') as out_file:
+    with open(output_prediction_csv_path,'w') as out_file:
         writer = csv.writer(out_file)
         for result in predictions:
             writer.writerow([result[0],result[1]])
