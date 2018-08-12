@@ -7,29 +7,7 @@
 
 # This code attempts to recreate the results from the MURA paper.
 
-#### NOTES.........
-#[3]
-'''Before feeding images into the network, we normalized each image to have the same mean and
-standard deviation of images in the ImageNet training set.'''
-#[4]
-'''We augmented the data during training by applying random lateral inversions and
-rotations of up to 30 degrees.'''
-#[5]
-'''Learning rate decayed by a factor of 10 each time the validation loss
-plateaus after an epoch. We ensembled the 5 models with the lowest validation losses.'''
 
-#### TODOs.......
-#TODO [1] -- FOR INFERENCE SCRIPT
-# baseline model makes predictions based on arithematic mean of a view...
-# might need to turn split_data_labels() into a dict to capture the view info?
-# or only for inference step.... think about this.
-#TODO [2]
-# normalize to ImageNet mean/std ?? found this online?? [ 103.939, 116.779, 123.68 ]
-# normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
-#TODO [4]
-# add print to logging: https://docs.python.org/3.7/library/logging.html
-
-# ==================================  CODE  ==================================
 
 #### ========= Import Statements ========= ####
 import sys
@@ -75,7 +53,7 @@ except:
 #### ========= Global Vars and Constants ========= ####
 MAX_DATA = args.max_data
 MODEL_SUMMARY = args.model_summary
-EPOCHS = 15
+EPOCHS = 30
 IMG_RESIZE_X = 320
 IMG_RESIZE_Y = 320
 CHANNELS = 3
@@ -229,50 +207,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-#
-
-# *Note:
-# WARNING:tensorflow:TensorFlow optimizers do not make it possible to access optimizer attributes or optimizer state after instantiation. As a result, we cannot save the optimizer as part of the model save file.You will have to compile your model again after loading it. Prefer using a Keras optimizer instead (see keras.io/optimizers).
-
-#  roc curve plotting:
-# from sklearn.metrics import roc_curve
-# y_pred_keras = keras_model.predict(valid_dataset).ravel()
-# fpr_keras, tpr_keras, thresholds_keras = roc_curve(y_test, y_pred_keras)
-#
-# # from sklearn.metrics import auc
-# # auc_keras = auc(fpr_keras, tpr_keras)
-#
-#
-#
-# from sklearn.ensemble import RandomForestClassifier
-# # Supervised transformation based on random forests
-# rf = RandomForestClassifier(max_depth=3, n_estimators=10)
-# rf.fit(X_train, y_train)
-#
-# y_pred_rf = rf.predict_proba(X_test)[:, 1]
-# fpr_rf, tpr_rf, thresholds_rf = roc_curve(y_test, y_pred_rf)
-# auc_rf = auc(fpr_rf, tpr_rf)
-#
-#
-#
-# plt.figure(1)
-# plt.plot([0, 1], [0, 1], 'k--')
-# plt.plot(fpr_keras, tpr_keras, label='Keras (area = {:.3f})'.format(auc_keras))
-# plt.plot(fpr_rf, tpr_rf, label='RF (area = {:.3f})'.format(auc_rf))
-# plt.xlabel('False positive rate')
-# plt.ylabel('True positive rate')
-# plt.title('ROC curve')
-# plt.legend(loc='best')
-# plt.show()
-# # Zoom in view of the upper left corner.
-# plt.figure(2)
-# plt.xlim(0, 0.2)
-# plt.ylim(0.8, 1)
-# plt.plot([0, 1], [0, 1], 'k--')
-# plt.plot(fpr_keras, tpr_keras, label='Keras (area = {:.3f})'.format(auc_keras))
-# plt.plot(fpr_rf, tpr_rf, label='RF (area = {:.3f})'.format(auc_rf))
-# plt.xlabel('False positive rate')
-# plt.ylabel('True positive rate')
-# plt.title('ROC curve (zoomed in at top left)')
-# plt.legend(loc='best')
-# plt.show()
