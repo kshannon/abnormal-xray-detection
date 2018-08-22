@@ -7,17 +7,44 @@
 # takes cmd line args to load in config files
 
 import sys
+sys.path.append("..") #add path for project modules ../
 import os
 import csv
 import re
 import numpy as np
 import yaml
 import h5py
-# import tensorflow as tf
-# from tensorflow.keras.preprocessing import image
-# from tensorflow.keras import models
+import tensorflow as tf
+# Project Modules
+import experiment
 
 
+
+
+
+
+
+def main():
+    # Using CPU Build Datasets
+    with tf.device('/cpu:0'):
+        print("Building tf.data Train/Validation Dataset Objects")
+        train_dataset = experiment.build_dataset(source_type="train.csv")
+        valid_dataset = experiment.build_dataset(source_type="valid.csv")
+
+
+    print(type(train_dataset))
+
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+'''
 #### ========= Globals, Constants, Config Ingestion ========= ####
 
 config = '../configs/' + str(sys.argv[1])
@@ -28,9 +55,9 @@ print(config)
 
 
 
-with open("../configs/test.yml", 'r') as stream:
+with open(config,'r') as config_in:
     try:
-        print(yaml.safe_load(stream))
+        print(yaml.safe_load(config_in))
     except yaml.YAMLError as exc:
         print(exc)
 
@@ -59,3 +86,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+'''
