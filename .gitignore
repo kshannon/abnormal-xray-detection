@@ -28,6 +28,7 @@ TensorBoard_logs/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
